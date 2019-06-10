@@ -170,7 +170,7 @@ const defaultMsgs = async () => {
 			counter++;
 			break;
 		case 3:
-			msg = "If you'd like to see more of us through social media, sroll down below to see them all!";
+			msg = "If you'd like to see more of us through social media, scroll down below to see them all!";
 			client.say(user, msg);
 			counter = 0;
 			break;
@@ -189,17 +189,7 @@ const fetchTwitch = async (url) => {
 	return await response.json();
 }
 
-// To-do: return years and seconds
 const getTimeDiff = start => {
-	/*
-	const current = (new Date()).getTime();
-	let diffInSecs = Math.floor((current - startTime) / 1000);
-	const hours = Math.floor(diffInSecs / 3600);
-	diffInSecs -= hours * 3600;
-	const mins = Math.floor(diffInSecs / 60);
-	diffInSecs -= mins * 60;
-	return { hours, mins, secs: diffInSecs };
-	*/
 	const current = new moment();
 	return moment.preciseDiff(start, current, true);
 }
@@ -217,51 +207,3 @@ const isUptimeQuestion = question => {
 }
 
 setInterval(defaultMsgs, 900000);
-
-/* OLD COMMANDS
-let queue = [];
-let friends = {};
-
-	if (command[0] === '!join') {
-		if (queue.includes(userstate['display-name'])) { return; }
-		if (command[1]) {
-			friends[command[1]] = command[2];
-			queue.push(userstate['display-name']);
-		} else {
-			if (friends[userstate['display-name']]) {
-				queue.push(userstate['display-name']);
-			}
-		}
-	}
-	if (command[0] === '!party') {
-		if (!queue.length) {
-				client.say(user, "There's nobody playing with us right now! Join the party with '!join'.");
-		}
-		msg = 'Current Bandori Party: ';
-		for (let i = 0; i < 3; i++) {
-				if (queue[i]) {
-						msg += queue[i] + ' ';
-				}
-		}
-		client.say(user, msg);
-	}
-
-	if (command[0] === '!list') {
-		msg = 'Current Bandori Party: ';
-		for (let user in queue) {
-				msg += user + ' ';
-		}
-		client.say(user, msg);
-	}
-
-	// MOD-ONLY COMMANDS
-	if (command[0] === '!next' && (userstate.mod || userstate['user-id'] === id)) {
-		queue.shift();
-	}
-
-	if (command[0] === '!nextround' && (userstate.mod || userstate['user-id'] === id)) {
-		queue.shift();
-		queue.shift();
-		queue.shift();
-	}
-*/
