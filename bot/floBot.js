@@ -30,7 +30,7 @@ client.on("chat", async (channel, userstate, msg, self) => {
     if (status) {
       client.say(channel, `The queue is open! Party up bois!`)
     } else {
-      client.say(channel, `The queue is closed. It's just floskeee today!`)
+      client.say(channel, `The queue is closed. It's floskeee time!`)
     }
   }
   // !join <username?>
