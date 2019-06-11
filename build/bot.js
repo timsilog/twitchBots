@@ -161,7 +161,7 @@ client.on("chat", async function (channel, userstate, msg, self) {
 // needs to be declared function for listener for some reason
 async function onConnectedHandler(addr, port) {
 	console.log('Connected to ' + addr + ':' + port);
-	var data = await fetchTwitch('users/follows?to_id=' + _options.options.channelInfo[0].user_id + '&from_id=');
+	// const data = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=`);
 	// const data = await fetchTwitch(`users/follows?from_name=floskeee`);
 }
 

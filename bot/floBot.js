@@ -183,7 +183,7 @@ client.on("chat", async (channel, userstate, msg, self) => {
     if (command[0] === '!drop' && command.length > 1) {
       let spot = queue.findIndex(player => player.twitch === command[1]);
       if (spot >= 0) {
-        queue.splice(spot, 0);
+        queue.splice(spot);
         if (verbose) {
           client.say(channel, `Removed ${command[1]}`);
         }
