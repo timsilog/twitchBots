@@ -214,7 +214,7 @@ client.on("chat", async function (channel, userstate, msg, self) {
         return player.twitch === command[1];
       });
       if (_spot2 >= 0) {
-        queue.splice(_spot2, 0);
+        queue.splice(_spot2);
         if (verbose) {
           client.say(channel, 'Removed ' + command[1]);
         }
