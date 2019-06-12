@@ -45,11 +45,15 @@ client.on("chat", async function (channel, userstate, msg, self) {
     if (status) {
       client.say(channel, 'The queue is open! Party up bois!');
     } else {
-      client.say(channel, 'The queue is closed. It\'s just floskeee today!');
+      client.say(channel, 'The queue is closed. It\'s floskeee time!');
     }
   }
   // !join <username?>
   if (command[0] === '!join' && status) {
+    var followed = await fetchTwitch('users/follows?to_id=' + _floOptions.options.channelInfo[0].user_id + '&from_id=' + userstate['user-id']);
+    if (!followed.total && verbose) {
+      client.say(channel, 'Sorry ' + userstate['display-name'] + ', you must be a follower to join the queue!');
+    }
     if (queue.filter(function (player) {
       return player.twitch === joiner;
     }).length > 0) {
@@ -88,21 +92,6 @@ client.on("chat", async function (channel, userstate, msg, self) {
       client.say(channel, userstate['display-name'] + ' joined the party!');
     }
   }
-  if (command[0] === '!list') {
-    if (!queue.length) {
-      client.say(channel, "There's nobody playing with us right now! Join the party with '!join <username>'.");
-      return;
-    }
-    var _msg = 'Current Line: ';
-    _msg = queue.reduce(function (a, c, i) {
-      a += c.twitch === c.ign ? c.twitch : c.twitch + ' (' + c.ign + ')';
-      if (i < queue.length - 1) {
-        a += ', ';
-      }
-      return a;
-    }, _msg);
-    client.say(channel, _msg);
-  }
   if (command[0] === '!dropme') {
     queue.splice(queue.findIndex(function (player) {
       return player.name === joiner;
@@ -119,6 +108,21 @@ client.on("chat", async function (channel, userstate, msg, self) {
   }
   // MOD-ONLY COMMANDS
   if (userstate.mod || isBc(userstate)) {
+    if (command[0] === '!list') {
+      if (!queue.length) {
+        client.say(channel, "There's nobody playing with us right now! Join the party with '!join <username>'.");
+        return;
+      }
+      var _msg = 'Current Line: ';
+      _msg = queue.reduce(function (a, c, i) {
+        a += c.twitch === c.ign ? c.twitch : c.twitch + ' (' + c.ign + ')';
+        if (i < queue.length - 1) {
+          a += ', ';
+        }
+        return a;
+      }, _msg);
+      client.say(channel, _msg);
+    }
     // toggle verbosity
     if (command[0] === '!verbose') {
       verbose = !verbose;
@@ -231,32 +235,33 @@ async function onConnectedHandler(addr, port) {
 }
 
 var defaultMsgs = async function defaultMsgs() {
-  var msg = void 0;
-  switch (counter) {
-    case 0:
-      var _data = await fetchTwitch('users/follows?to_id=' + _floOptions.options.channelInfo[0].user_id);
-      // console.log(data);
-      msg = 'Talking in the chat will help Flo remember who you are. She likes it when everyone interacts with each other.';
-      client.say(user, msg);
-      counter++;
-      break;
-    case 1:
-      msg = "ATTENTION: If you have not FOLLOWED yet, PLEASE DO :) Floskeee would be so happy <333 Thank you!";
-      client.say(user, msg);
-      counter = 0;
-      break;
-    default:
-      console.log("shouldn't ever get here");
-  }
+  setTimeout(async function () {
+    var msg = void 0;
+    switch (counter) {
+      case 0:
+        var _data = await fetchTwitch('users/follows?to_id=' + _floOptions.options.channelInfo[0].user_id);
+        // console.log(data);
+        msg = 'Talking in the chat will help Flo remember who you are. She likes it when everyone interacts with each other.';
+        client.say(user, msg);
+        counter++;
+        break;
+      case 1:
+        msg = "ATTENTION: If you have not FOLLOWED yet, PLEASE DO :) Floskeee would be so happy <333 Thank you!";
+        client.say(user, msg);
+        counter = 0;
+        break;
+      default:
+        console.log("shouldn't ever get here");
+    }
+  }, verbose ? defaultMsgInterval : defaultMsgInterval * 2);
+  defaultMsgs();
 };
-
-setTimeout(defaultMsgs, verbose ? defaultMsgInterval : defaultMsgInterval * 2);
 
 var fetchTwitch = async function fetchTwitch(url) {
   var response = await fetch('https://api.twitch.tv/helix/' + url, {
     method: "GET",
     headers: {
-      'Client-ID': _floOptions.options.client.id
+      'Client-ID': _floOptions.options.clientId
     }
   });
   return await response.json();

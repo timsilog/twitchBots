@@ -35,6 +35,10 @@ client.on("chat", async (channel, userstate, msg, self) => {
   }
   // !join <username?>
   if (command[0] === '!join' && status) {
+    const followed = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=${userstate['user-id']}`);
+    if (!followed.total && verbose) {
+      client.say(channel, `Sorry ${userstate['display-name']}, you must be a follower to join the queue!`);
+    }
     if (queue.filter(player => player.twitch === joiner).length > 0) {
       if (command[1]) {
         friends[joiner] = command.slice(1).join(' ');;
@@ -69,21 +73,6 @@ client.on("chat", async (channel, userstate, msg, self) => {
       client.say(channel, `${userstate['display-name']} joined the party!`);
     }
   }
-  if (command[0] === '!list') {
-    if (!queue.length) {
-      client.say(channel, "There's nobody playing with us right now! Join the party with '!join <username>'.");
-      return;
-    }
-    let msg = 'Current Line: ';
-    msg = queue.reduce((a, c, i) => {
-      a += c.twitch === c.ign ? c.twitch : `${c.twitch} (${c.ign})`;
-      if (i < queue.length - 1) {
-        a += ', ';
-      }
-      return a;
-    }, msg);
-    client.say(channel, msg);
-  }
   if (command[0] === '!dropme') {
     queue.splice(queue.findIndex(player => player.name === joiner));
     client.say(channel, `Dropped ${userstate['display-name']}`);
@@ -96,6 +85,21 @@ client.on("chat", async (channel, userstate, msg, self) => {
   }
   // MOD-ONLY COMMANDS
   if (userstate.mod || isBc(userstate)) {
+    if (command[0] === '!list') {
+      if (!queue.length) {
+        client.say(channel, "There's nobody playing with us right now! Join the party with '!join <username>'.");
+        return;
+      }
+      let msg = 'Current Line: ';
+      msg = queue.reduce((a, c, i) => {
+        a += c.twitch === c.ign ? c.twitch : `${c.twitch} (${c.ign})`;
+        if (i < queue.length - 1) {
+          a += ', ';
+        }
+        return a;
+      }, msg);
+      client.say(channel, msg);
+    }
     // toggle verbosity
     if (command[0] === '!verbose') {
       verbose = !verbose;
@@ -201,32 +205,33 @@ async function onConnectedHandler(addr, port) {
 }
 
 const defaultMsgs = async () => {
-  let msg;
-  switch (counter) {
-    case 0:
-      const data = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}`);
-      // console.log(data);
-      msg = `Talking in the chat will help Flo remember who you are. She likes it when everyone interacts with each other.`;
-      client.say(user, msg);
-      counter++;
-      break;
-    case 1:
-      msg = "ATTENTION: If you have not FOLLOWED yet, PLEASE DO :) Floskeee would be so happy <333 Thank you!";
-      client.say(user, msg);
-      counter = 0;
-      break;
-    default:
-      console.log("shouldn't ever get here");
-  }
+  setTimeout(async () => {
+    let msg;
+    switch (counter) {
+      case 0:
+        const data = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}`);
+        // console.log(data);
+        msg = `Talking in the chat will help Flo remember who you are. She likes it when everyone interacts with each other.`;
+        client.say(user, msg);
+        counter++;
+        break;
+      case 1:
+        msg = "ATTENTION: If you have not FOLLOWED yet, PLEASE DO :) Floskeee would be so happy <333 Thank you!";
+        client.say(user, msg);
+        counter = 0;
+        break;
+      default:
+        console.log("shouldn't ever get here");
+    }
+  }, verbose ? defaultMsgInterval : defaultMsgInterval * 2);
+  defaultMsgs();
 }
-
-setTimeout(defaultMsgs, verbose ? defaultMsgInterval : defaultMsgInterval * 2);
 
 const fetchTwitch = async (url) => {
   const response = await fetch(`https://api.twitch.tv/helix/${url}`, {
     method: "GET",
     headers: {
-      'Client-ID': options.client.id,
+      'Client-ID': options.clientId,
     }
   });
   return await response.json();
