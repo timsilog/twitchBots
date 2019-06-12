@@ -38,6 +38,7 @@ client.on("chat", async (channel, userstate, msg, self) => {
     const followed = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=${userstate['user-id']}`);
     if (!followed.total && verbose) {
       client.say(channel, `Sorry ${userstate['display-name']}, you must be a follower to join the queue!`);
+      return;
     }
     if (queue.filter(player => player.twitch === joiner).length > 0) {
       if (command[1]) {
