@@ -1,0 +1,20 @@
+--- PUBLIC COMMANDS ---
+!status: Check if the queue is open.
+!join <username?>: Join the queue. 'username' is required for the first time, then no longer needed every time after. Calling '!join <username>' otherwise updates your Fortnite name in the database.
+!dropme: Remove yourself from the list.
+!spot: See where you are in line.
+
+--- MOD-ONLY COMMANDS ---
+- Queue Commands -
+!open: Open the queue.
+!close: Close the queue.
+!list: See the current queue.
+!current: Tell the chat who's next in line.
+!next: Remove the person in the front of the line.
+!skip: Move the front of the line to the back.
+!add <twitchname> <number?>: Adds 
+
+- Queue Settings -
+!verbose: Toggle whether the bot responds to everything or not
+!limit: See the current queue size limit (default 10).
+!setlimit <number>: Set the queue size limit.
