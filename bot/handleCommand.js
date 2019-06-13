@@ -130,10 +130,15 @@ export const handleCommand = async (client, channel, userstate, msg, whisperTo) 
         client.whisper(userstate['display-name'], `Reminders disabled`);
         return;
       }
-      reminders(channel, true);
+      client.whisper(userstate['display-name'], `Reminders have been enabled for every ${reminderInterval / 60000} minutes.`)
+      reminders(channel, client, true);
     }
     // set remind interval
-    if (command[0] === '!remind-interval' && command.length == 2) {
+    if (command[0] === '!remind-interval') {
+      if (!command[1]) {
+        client.whisper(userstate['display-name'], `Reminders occur every ${reminderInterval / 60000} minutes.`);
+        return;
+      }
       if (/^\d+$/.test(command[1])) {
         reminderInterval = command[1] * 60000;
         client.whisper(userstate['display-name'], `Reminders will occur every ${command[1]} minutes after the next.`);
@@ -157,7 +162,11 @@ export const handleCommand = async (client, channel, userstate, msg, whisperTo) 
       client.whisper(userstate['display-name'], `Auto-list has been enabled for every ${autoListInterval / 60000} minutes.`);
     }
     // set autolist interval
-    if (command[0] === '!autolist-interval' && command.length == 2) {
+    if (command[0] === '!autolist-interval') {
+      if (!command[1]) {
+        client.whisper(userstate['display-name'], `Auto list interval is set to every ${autoListInterval / 60000} minutes.`);
+        return;
+      }
       if (command[1] && /^\d+$/.test(command[1])) {
         autoListInterval = command[1] * 60000;
         client.whisper(userstate['display-name'], `Auto list interval set to ${command[1]} minutes. Sets after next execution.`);
@@ -299,7 +308,7 @@ export const handleCommand = async (client, channel, userstate, msg, whisperTo) 
   }
 };
 
-const reminders = async (channel, first) => {
+const reminders = async (channel, client, first) => {
   let msg;
   if (first) {
     msg = "ATTENTION: If you have not FOLLOWED yet, PLEASE DO :) Floskeee would be so happy <3 Thank you!";
@@ -318,7 +327,7 @@ const reminders = async (channel, first) => {
         counter = 0;
         break;
     }
-    reminders(channel);
+    reminders(channel, client);
   }, reminderInterval);
 }
 

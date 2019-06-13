@@ -22,8 +22,7 @@ var status = true;
 var verbose = true;
 var limit = 10;
 var reminderInterval = 1200000; // 20 mins
-// let autoListInterval = 600000; // 10 mins
-var autoListInterval = 3000; // 3 seconds;
+var autoListInterval = 600000; // 10 mins
 var reminderId = void 0;
 var autoListId = void 0;
 var mode = 'follower';
@@ -152,7 +151,8 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
         client.whisper(userstate['display-name'], 'Reminders disabled');
         return;
       }
-      reminders(channel, true);
+      client.whisper(userstate['display-name'], 'Reminders have been enabled for every ' + reminderInterval / 60000 + ' minutes.');
+      reminders(channel, client, true);
     }
     // set remind interval
     if (command[0] === '!remind-interval' && command.length == 2) {
@@ -333,7 +333,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
   }
 };
 
-var reminders = async function reminders(channel, first) {
+var reminders = async function reminders(channel, client, first) {
   var msg = void 0;
   if (first) {
     msg = "ATTENTION: If you have not FOLLOWED yet, PLEASE DO :) Floskeee would be so happy <3 Thank you!";
@@ -352,7 +352,7 @@ var reminders = async function reminders(channel, first) {
         counter = 0;
         break;
     }
-    reminders(channel);
+    reminders(channel, client);
   }, reminderInterval);
 };
 
