@@ -1,5 +1,7 @@
-let arr = [1, 2, 3, 4, 5];
-arr.splice(2, 0, 10);
-arr.splice(10, 0, 11);
-arr.splice(10, 0, 12);
-console.log(arr);
+let arr = ["asd", "qwe", "zxc", "123", "fgh"];
+let i = arr.findIndex(s => {
+  console.log(s);
+  return s == "asd";
+});
+console.log(i);
+console.log("asd");

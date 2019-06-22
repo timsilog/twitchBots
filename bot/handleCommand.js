@@ -4,6 +4,7 @@ import { options } from './floOptions';
 
 const data = JSON.parse(fs.readFileSync(`${__dirname}/../floData.json`));
 let queue = [];
+let apiQueue = [];
 let friends = data.fortniteFriends;
 let status = true;
 let verbose = true;
@@ -14,6 +15,7 @@ let reminderId;
 let autoListId;
 let mode = 'follower';
 let counter = 0;
+let followLock = false;
 
 export const handleCommand = async (client, channel, userstate, msg, whisperTo) => {
   let command = msg.toLowerCase().split(' ');
@@ -28,22 +30,7 @@ export const handleCommand = async (client, channel, userstate, msg, whisperTo) 
   }
   // !join <username?>
   if (command[0] === '!join' && status) {
-    if (mode === 'follower') {
-      const followed = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=${userstate['user-id']}`);
-      if (!followed.total) {
-        if (verbose) {
-          client.say(channel, `Sorry ${userstate['display-name']}, you must be a follower to join the queue!`);
-        }
-        return;
-      }
-    } else if (mode === 'sub') {
-      if (!userstate.subscriber) {
-        if (verbose) {
-          client.say(channel, `Sorry ${userstate['display-name']}, you must be a subscriber to join the queue!`);
-        }
-        return;
-      }
-    }
+    // if already in queue
     if (queue.filter(player => player.twitch === joiner).length > 0) {
       if (command[1]) {
         friends[joiner] = command.slice(1).join(' ');
@@ -57,33 +44,15 @@ export const handleCommand = async (client, channel, userstate, msg, whisperTo) 
       }
       return;
     }
-    if (queue.length === limit) {
-      if (verbose) {
-        client.say(channel, `Sorry ${userstate['display-name']}, the queue is full!`);
-      }
-      return;
-    }
-    if (!friends[joiner] && command.length < 2) {
-      if (verbose) {
-        client.say(channel, `${joiner}, Flo needs your username just once! Type '!join username', then you can use '!join' every time after that.`);
-      }
-      return;
-    }
-    if (command[1]) {
-      friends[joiner] = command.slice(1).join(' ');;
-      updateData();
-      queue.push({ twitch: joiner, ign: command[1] });
-    } else {
-      queue.push({ twitch: joiner, ign: friends[joiner] });
-    }
-    if (verbose) {
-      client.say(channel, `${userstate['display-name']} joined the party! You are number ${queue.length} in line.`);
-    }
+    joinParty(client, userstate, channel, command);
   }
   if (command[0] === '!dropme') {
-    const removed = queue.splice(queue.findIndex(player => player.name === joiner), 1);
-    if (removed.length && verbose) {
-      client.say(channel, `Removed ${userstate['display-name']}`);
+    const i = queue.findIndex(player => player.twitch === joiner);
+    if (i > -1) {
+      const removed = queue.splice(i, 1);
+      if (removed.length && verbose) {
+        client.say(channel, `Removed ${userstate['display-name']}`);
+      }
     }
   }
   if (command[0] === '!spot') {
@@ -371,4 +340,55 @@ const getList = showAll => {
     return a;
   }, msg);
   return msg;
+}
+
+const joinParty = async (client, userstate, channel, command) => {
+  if (followLock) {
+    console.log("waiting");
+    setTimeout(() => {
+      joinParty(client, userstate, channel, command);
+    }, 100);
+    return;
+  }
+  if (mode === 'follower') {
+    followLock = true;
+    let followed = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=${userstate['user-id']}`);
+    setTimeout(() => { followLock = false; }, 1000);
+    if (!followed.total) {
+      if (verbose) {
+        client.say(channel, `Sorry ${userstate['display-name']}, you must be a follower to join the queue!`);
+      }
+      return;
+    }
+  } else if (mode === 'sub') {
+    if (!userstate.subscriber) {
+      if (verbose) {
+        client.say(channel, `Sorry ${userstate['display-name']}, you must be a subscriber to join the queue!`);
+      }
+      return;
+    }
+  }
+  const joiner = userstate['display-name'].toLowerCase();
+  if (queue.length === limit) {
+    if (verbose) {
+      client.say(channel, `Sorry ${userstate['display-name']}, the queue is full!`);
+    }
+    return;
+  }
+  if (!friends[joiner] && command.length < 2) {
+    if (verbose) {
+      client.say(channel, `${joiner}, Flo needs your username just once! Type '!join username', then you can use '!join' every time after that.`);
+    }
+    return;
+  }
+  if (command[1]) {
+    friends[joiner] = command.slice(1).join(' ');;
+    updateData();
+    queue.push({ twitch: joiner, ign: command[1] });
+  } else {
+    queue.push({ twitch: joiner, ign: friends[joiner] });
+  }
+  if (verbose) {
+    client.say(channel, `${userstate['display-name']} joined the party! You are number ${queue.length} in line.`);
+  }
 }

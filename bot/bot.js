@@ -11,8 +11,8 @@ const broadcaster = 'gimmedafruitsnacks';
 let counter = 0;
 const data = JSON.parse(fs.readFileSync(`${__dirname}/../data.json`));
 const games = data.games;
-const ogSnackFacts = data.snackFacts;
-let snackFacts;
+const snackFacts = Object.assign({}, data.snackFacts);
+let availableSnackFacts = Object.assign({}, data.snackFacts);
 
 client.connect();
 client.on('connected', onConnectedHandler);
@@ -86,28 +86,31 @@ client.on("chat", async (channel, userstate, msg, self) => {
 
 	// !snackfact <num?>
 	if (command[0] === '!snackfact') {
-		if (command[1] && !(command[1] in ogSnackFacts)) {
+		if (command[1] && !(command[1] in snackFacts)) {
 			client.say(user, `There is no SnackFact #${command[1]}!`);
 		} else if (command[1]) {
-			client.say(user, `SnackFact #${command[1]}: ${ogSnackFacts[command[1]]}`);
+			client.say(user, `SnackFact #${command[1]}: ${snackFacts[command[1]]}`);
 		} else {
-			const num = Object.keys(snackFacts)[Object.keys(snackFacts).length * Math.random() << 0];
-			client.say(user, `SnackFact #${num}: ${snackFacts[num]}`);
-			snackFacts.splice(num, 1);
+			const num = Object.keys(availableSnackFacts)[Object.keys(availableSnackFacts).length * Math.random() << 0];
+			client.say(user, `SnackFact #${num}: ${availableSnackFacts[num]}`);
+			delete availableSnackFacts[num];
+			if (Object.entries(availableSnackFacts).length === 0) {
+				availableSnackFacts = Object.assign({}, snackFacts);
+			}
 		}
 	}
 
 	// !addfact <num> <fact>
 	// mod only!
 	if (command[0] === '!addfact' && command.length > 2 && (userstate.mod || userstate.username === broadcaster)) {
-		if (command[1] in ogSnackFacts) {
+		if (command[1] in snackFacts) {
 			client.say(user, `SnackFact #${command[1]} already exists! Run !getfact to get an available number.`);
 		} else if (isNaN(command[1])) {
-			client.say(user, `${command[1]} isn't a number.. SnackFacts need numbers!`);
+			client.say(user, `${command[1]} isn't a number.. Snack Facts need numbers!`);
 		} else {
 			fact = command.slice(2).join(' ');
-			ogSnackFacts[command[1]] = fact;
 			snackFacts[command[1]] = fact;
+			availableSnackFacts[command[1]] = fact;
 			updateData();
 			client.say(user, `Okay added Snack Fact #${command[1]}!`);
 		}
@@ -116,13 +119,13 @@ client.on("chat", async (channel, userstate, msg, self) => {
 	// !editfact <num> <newFact>
 	// mod only!
 	if (command[0] === '!editfact' && command.length > 2 && (userstate.mod || userstate.username === broadcaster)) {
-		if (!(command[1] in ogSnackFacts)) {
+		if (!(command[1] in snackFacts)) {
 			client.say(user, `There is no SnackFact #${command[1]}!`);
 		} else {
 			const fact = command.slice(2).join(' ');
-			ogSnackFacts[command[1]] = fact;
-			if (command[1] in snackFacts) {
-				snackFacts[command[1]] = fact;
+			snackFacts[command[1]] = fact;
+			if (command[1] in availableSnackFacts) {
+				availableSnackFacts[command[1]] = fact;
 			}
 			updateData();
 			client.say(user, `Okay edited Snack Fact #${command[1]}.`);
@@ -130,11 +133,11 @@ client.on("chat", async (channel, userstate, msg, self) => {
 	}
 
 	// // mod only!
-	if (command[0] === '!getfact') {
-		// return a random number of an available fact no greater than 30 of the highest fact
-		let num;
-		client.say(user, `Snack Fact #${num}`);
-	}
+	// if (command[0] === '!getfact') {
+	// 	// return a random number of an available fact no greater than 30 of the highest fact
+	// 	let num;
+	// 	client.say(user, `Snack Fact #${num}`);
+	// }
 });
 
 
@@ -174,8 +177,6 @@ const defaultMsgs = async () => {
 			client.say(user, msg);
 			counter = 0;
 			break;
-		default:
-			console.log("shouldn't ever get here");
 	}
 }
 
@@ -183,7 +184,7 @@ const fetchTwitch = async (url) => {
 	const response = await fetch(`https://api.twitch.tv/helix/${url}`, {
 		method: "GET",
 		headers: {
-			'Client-ID': options.client.id,
+			'Client-ID': options.options.clientId,
 		}
 	});
 	return await response.json();
@@ -195,7 +196,7 @@ const getTimeDiff = start => {
 }
 
 const updateData = () => {
-	fs.writeFileSync(`${__dirname}/../data.json`, JSON.stringify({ games, ogSnackFacts }));
+	fs.writeFileSync(`${__dirname}/../data.json`, JSON.stringify({ games, snackFacts }));
 }
 
 const isUptimeQuestion = question => {

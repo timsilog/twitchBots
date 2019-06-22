@@ -17,6 +17,7 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 var data = JSON.parse(fs.readFileSync(__dirname + '/../floData.json'));
 var queue = [];
+var apiQueue = [];
 var friends = data.fortniteFriends;
 var status = true;
 var verbose = true;
@@ -27,6 +28,7 @@ var reminderId = void 0;
 var autoListId = void 0;
 var mode = 'follower';
 var counter = 0;
+var followLock = false;
 
 var handleCommand = exports.handleCommand = async function handleCommand(client, channel, userstate, msg, whisperTo) {
   var command = msg.toLowerCase().split(' ');
@@ -41,22 +43,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
   }
   // !join <username?>
   if (command[0] === '!join' && status) {
-    if (mode === 'follower') {
-      var followed = await fetchTwitch('users/follows?to_id=' + _floOptions.options.channelInfo[0].user_id + '&from_id=' + userstate['user-id']);
-      if (!followed.total) {
-        if (verbose) {
-          client.say(channel, 'Sorry ' + userstate['display-name'] + ', you must be a follower to join the queue!');
-        }
-        return;
-      }
-    } else if (mode === 'sub') {
-      if (!userstate.subscriber) {
-        if (verbose) {
-          client.say(channel, 'Sorry ' + userstate['display-name'] + ', you must be a subscriber to join the queue!');
-        }
-        return;
-      }
-    }
+    // if already in queue
     if (queue.filter(function (player) {
       return player.twitch === joiner;
     }).length > 0) {
@@ -74,35 +61,17 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
       }
       return;
     }
-    if (queue.length === limit) {
-      if (verbose) {
-        client.say(channel, 'Sorry ' + userstate['display-name'] + ', the queue is full!');
-      }
-      return;
-    }
-    if (!friends[joiner] && command.length < 2) {
-      if (verbose) {
-        client.say(channel, joiner + ', Flo needs your username just once! Type \'!join username\', then you can use \'!join\' every time after that.');
-      }
-      return;
-    }
-    if (command[1]) {
-      friends[joiner] = command.slice(1).join(' ');;
-      updateData();
-      queue.push({ twitch: joiner, ign: command[1] });
-    } else {
-      queue.push({ twitch: joiner, ign: friends[joiner] });
-    }
-    if (verbose) {
-      client.say(channel, userstate['display-name'] + ' joined the party! You are number ' + queue.length + ' in line.');
-    }
+    joinParty(client, userstate, channel, command);
   }
   if (command[0] === '!dropme') {
-    var removed = queue.splice(queue.findIndex(function (player) {
-      return player.name === joiner;
-    }), 1);
-    if (removed.length && verbose) {
-      client.say(channel, 'Removed ' + userstate['display-name']);
+    var i = queue.findIndex(function (player) {
+      return player.twitch === joiner;
+    });
+    if (i > -1) {
+      var removed = queue.splice(i, 1);
+      if (removed.length && verbose) {
+        client.say(channel, 'Removed ' + userstate['display-name']);
+      }
     }
   }
   if (command[0] === '!spot') {
@@ -155,7 +124,11 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
       reminders(channel, client, true);
     }
     // set remind interval
-    if (command[0] === '!remind-interval' && command.length == 2) {
+    if (command[0] === '!remind-interval') {
+      if (!command[1]) {
+        client.whisper(userstate['display-name'], 'Reminders occur every ' + reminderInterval / 60000 + ' minutes.');
+        return;
+      }
       if (/^\d+$/.test(command[1])) {
         reminderInterval = command[1] * 60000;
         client.whisper(userstate['display-name'], 'Reminders will occur every ' + command[1] + ' minutes after the next.');
@@ -179,7 +152,11 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
       client.whisper(userstate['display-name'], 'Auto-list has been enabled for every ' + autoListInterval / 60000 + ' minutes.');
     }
     // set autolist interval
-    if (command[0] === '!autolist-interval' && command.length == 2) {
+    if (command[0] === '!autolist-interval') {
+      if (!command[1]) {
+        client.whisper(userstate['display-name'], 'Auto list interval is set to every ' + autoListInterval / 60000 + ' minutes.');
+        return;
+      }
       if (command[1] && /^\d+$/.test(command[1])) {
         autoListInterval = command[1] * 60000;
         client.whisper(userstate['display-name'], 'Auto list interval set to ' + command[1] + ' minutes. Sets after next execution.');
@@ -398,4 +375,57 @@ var getList = function getList(showAll) {
     return a;
   }, msg);
   return msg;
+};
+
+var joinParty = async function joinParty(client, userstate, channel, command) {
+  if (followLock) {
+    console.log("waiting");
+    setTimeout(function () {
+      joinParty(client, userstate, channel, command);
+    }, 100);
+    return;
+  }
+  if (mode === 'follower') {
+    followLock = true;
+    var followed = await fetchTwitch('users/follows?to_id=' + _floOptions.options.channelInfo[0].user_id + '&from_id=' + userstate['user-id']);
+    setTimeout(function () {
+      followLock = false;
+    }, 1000);
+    if (!followed.total) {
+      if (verbose) {
+        client.say(channel, 'Sorry ' + userstate['display-name'] + ', you must be a follower to join the queue!');
+      }
+      return;
+    }
+  } else if (mode === 'sub') {
+    if (!userstate.subscriber) {
+      if (verbose) {
+        client.say(channel, 'Sorry ' + userstate['display-name'] + ', you must be a subscriber to join the queue!');
+      }
+      return;
+    }
+  }
+  var joiner = userstate['display-name'].toLowerCase();
+  if (queue.length === limit) {
+    if (verbose) {
+      client.say(channel, 'Sorry ' + userstate['display-name'] + ', the queue is full!');
+    }
+    return;
+  }
+  if (!friends[joiner] && command.length < 2) {
+    if (verbose) {
+      client.say(channel, joiner + ', Flo needs your username just once! Type \'!join username\', then you can use \'!join\' every time after that.');
+    }
+    return;
+  }
+  if (command[1]) {
+    friends[joiner] = command.slice(1).join(' ');;
+    updateData();
+    queue.push({ twitch: joiner, ign: command[1] });
+  } else {
+    queue.push({ twitch: joiner, ign: friends[joiner] });
+  }
+  if (verbose) {
+    client.say(channel, userstate['display-name'] + ' joined the party! You are number ' + queue.length + ' in line.');
+  }
 };
