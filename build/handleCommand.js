@@ -27,6 +27,9 @@ var autoListInterval = 600000; // 10 mins
 var reminderId = void 0;
 var autoListId = void 0;
 var mode = 'follower';
+var listIsMod = true;
+var listLock = false;
+var listCooldown = 20000; // default 20 seconds
 var counter = 0;
 var followLock = false;
 
@@ -84,8 +87,74 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
       client.say(channel, userstate['display-name'] + ', you\'re not in the queue. Type !join to enter!');
     }
   }
+  if (command[0] === '!skipme') {
+    var _i = queue.findIndex(function (player) {
+      return player.twitch === joiner;
+    });
+    if (_i > -1) {
+      queue.push(queue.splice(_i, 1)[0]);
+      client.say(channel, userstate['display-name'] + ' moved to the end of the line');
+    }
+  }
+
+  // print the list
+  if (command[0] === '!list') {
+    if (userstate.mod || isBc(userstate)) {
+      client.whisper(_floOptions.options.channels[0], getList(true));
+    } else {
+      if (listIsMod) {
+        // mod-only
+        return;
+      } else {
+        // public
+        if (listLock) {
+          return;
+        }
+        listLock = true;
+        setTimeout(function () {
+          listLock = false;
+        }, listCooldown);
+      }
+    }
+    client.say(channel, getList(command[1]));
+  }
+
   // MOD-ONLY COMMANDS
   if (userstate.mod || isBc(userstate)) {
+    // set/display list mode
+    if (command[0] === '!listmode') {
+      if (command[1]) {
+        switch (command[1]) {
+          case 'public':
+            listIsMod = false;
+            break;
+          case 'mod':
+            listIsMod = true;
+            break;
+          default:
+            client.whisper(userstate['display-name'], 'Didn\'t recognize ' + command[1] + ', try \'public\' or \'mod\'');
+        }
+      }
+      if (!listIsMod) {
+        client.say(channel, '\'!list\' is public with a cooldown of ' + listCooldown / 1000 + ' seconds.');
+      } else {
+        client.say(channel, '\'!list\' is mod-only.');
+      }
+    }
+    // set/display list cooldown
+    if (command[0] === '!listcooldown') {
+      if (command[1]) {
+        if (/^\d+$/.test(command[1])) {
+          // expects in seconds!
+          listCooldown = command[1] * 1000;
+          client.say(channel, '\'!list\' cooldown has been set to ' + command[1] + ' seconds');
+        } else {
+          client.whisper(userstate['display-name'], command[1] + ' is not a valid number in seconds.');
+        }
+      } else {
+        client.say(channel, '\'!list\' cooldown is ' + listCooldown / 1000 + ' seconds');
+      }
+    }
     // set queue mode
     if (command[0] === '!mode' && command.length > 1) {
       switch (command[1]) {
@@ -164,11 +233,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
         client.whisper(userstate['display-name'], command[1] + ' is not a valid number. Please enter a time in minutes.');
       }
     }
-    // print the list
-    if (command[0] === '!list') {
-      client.whisper(_floOptions.options.channels[0], getList(true));
-      client.say(channel, getList(command[1]));
-    }
+
     // toggle verbosity
     if (command[0] === '!verbose') {
       verbose = !verbose;
@@ -181,12 +246,14 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
         client.say(channel, 'The queue is open! Party up bois!');
       }
     }
+    // close the queue
     if (command[0] === '!close') {
       status = false;
       if (verbose) {
         client.say(channel, 'The queue is closed. It\'s just floskeee time now!');
       }
     }
+    // display who is first in line
     if (command[0] === '!current') {
       if (queue.length) {
         client.say(channel, 'Hi ' + queue[0].twitch + ' (' + queue[0].ign + '), it\'s your turn!');
@@ -194,6 +261,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
         client.say(channel, 'Queue is empty');
       }
     }
+    // remove the front of the line
     if (command[0] === '!next') {
       client.say(channel, 'Removed ' + queue[0].twitch);
       if (!queue.length) {
@@ -205,23 +273,48 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
     if (command[0] === '!setlimit' && command.length > 1) {
       if (/^\d+$/.test(command[1])) {
         limit = command[1];
-        client.whisper(userstate['display-name'], 'Queue limit has been set to ' + limit);
+        client.say(channel, 'Queue limit has been set to ' + limit);
       }
     }
+    // display the queue size limit
     if (command[0] === '!limit') {
       client.say(channel, 'Queue limit is ' + limit);
     }
+    // clear the entire queue
     if (command[0] === '!clear' && queue.length) {
       queue = [];
       if (verbose) {
         client.say(channel, 'Emptied the queue!');
       }
     }
-    if (command[0] === '!skip' && queue.length > 0) {
-      if (verbose) {
-        client.say(channel, queue[0].twitch + ', to the end of the line you go!');
+    // skip front of the line or specified user
+    if (command[0] === '!skip') {
+      if (command.length > 1) {
+        var succ = [];
+        var fail = [];
+        command.slice(1).forEach(function (skipUser) {
+          var i = queue.findIndex(function (player) {
+            return player.twitch === skipUser;
+          });
+          if (i > -1) {
+            queue.push(queue.splice(i, 1)[0]);
+            succ.push(skipUser);
+          } else {
+            fail.push(skipUser);
+          }
+        });
+        if (succ.length) {
+          client.say(channel, 'Skipped ' + succ.join(', '));
+        }
+        if (fail.length) {
+          client.whisper(channel, 'No such users in the queue: ' + failed.join(', '));
+        }
+      } else {
+        if (verbose) {
+          client.say(channel, queue[0].twitch + ', to the end of the line you go!');
+        }
+        queue.push(queue.shift());
       }
-      queue.push(queue.shift());
     }
     // !add <user> <position?>
     if (command[0] === '!add' && command.length > 1) {
@@ -255,47 +348,74 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
       }
     }
     if (command[0] === '!massadd' && command.length > 1) {
-      var succ = [];
-      var fail = [];
+      var _succ = [];
+      var _fail = [];
       command.slice(1).forEach(function (twitchUser) {
         if (queue.filter(function (player) {
           return player.twitch === twitchUser;
         }).length > 0) {
-          fail.push(twitchUser);
+          _fail.push(twitchUser);
           return;
         }
         if (friends[twitchUser]) {
           queue.push({ twitch: twitchUser, ign: friends[twitchUser] });
-          succ.push(twitchUser);
+          _succ.push(twitchUser);
         } else {
-          fail.push(twitchUser);
+          _fail.push(twitchUser);
         }
       });
-      if (succ.length) {
-        client.whisper(userstate['display-name'], 'Added: ' + succ.join(' '));
+      if (_succ.length) {
+        client.whisper(userstate['display-name'], 'Added: ' + _succ.join(' '));
       }
-      if (fail.length) {
-        client.whisper(userstate['display-name'], 'Failed: ' + fail.join(' '));
+      if (_fail.length) {
+        client.whisper(userstate['display-name'], 'Failed: ' + _fail.join(' '));
       }
+    }
+    // move a user's place in line
+    // !move <user> <location>
+    if (command[0] === '!move' && command.length > 2) {
+      if (!/^\d+$/.test(command[2])) {
+        client.whisper(userstate['display-name'], command[2] + ' is not a valid place in line. Line size is currently ' + queue.length + '.');
+        return;
+      }
+      var _i2 = queue.findIndex(function (player) {
+        return player.twitch === command[1];
+      });
+      if (_i2 < 0) {
+        client.whisper(userstate['display-name'], command[1] + ' is not in the queue.');
+        return;
+      }
+      queue.splice(command[2] - 1, 0, queue.splice(_i2, 1)[0]);
+      client.say(channel, 'Moved ' + command[1] + ' to be number ' + (command[2] > queue.length ? queue.length : command[2]) + ' in line');
     }
     // !store <user> <username>
     // Adds or edits a user in the database
     if (command[0] === '!store' && command.length > 2) {
-      friends[command[1]] = command.slice(2).join(' ');;
-      updateData();
+      friends[command[1]] = command.slice(2).join(' ');
+      if (friends[command[1]]) updateData();
       client.whisper(userstate['display-name'], 'Added ' + command[1] + ' to the database');
     }
     // !drop <user>
     if (command[0] === '!drop') {
-      if (command[1]) {
-        var _spot2 = queue.findIndex(function (player) {
-          return player.twitch === command[1];
-        });
-        if (_spot2 >= 0) {
-          queue.splice(_spot2, 1);
-          if (verbose) {
-            client.say(channel, 'Dropped ' + command[1]);
+      if (command.length > 1) {
+        var _succ2 = [];
+        var _fail2 = [];
+        command.slice(1).forEach(function (dropUser) {
+          var spot = queue.findIndex(function (player) {
+            return player.twitch === dropUser;
+          });
+          if (spot >= 0) {
+            queue.splice(spot, 1);
+            _succ2.push(dropUser);
+          } else {
+            _fail2.push(dropUser);
           }
+        });
+        if (verbose && _succ2.length) {
+          client.say(channel, 'Dropped ' + _succ2.join(', '));
+        }
+        if (_fail2.length) {
+          client.whisper(userstate['display-name'], 'No such users in queue: ' + _fail2.join(', '));
         }
       } else {
         if (!queue.length) {
