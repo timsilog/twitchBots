@@ -33,7 +33,9 @@ var listCooldown = 20000; // default 20 seconds
 var counter = 0;
 var followLock = false;
 
-var handleCommand = exports.handleCommand = async function handleCommand(client, channel, userstate, msg, whisperTo) {
+var handleCommand = exports.handleCommand = async function handleCommand(client, channel, userstate, msg, wsClients, whisperTo) {
+  console.log("WSCLIENTS");
+  console.log(wsClients);
   var command = msg.toLowerCase().split(' ');
   var joiner = userstate['display-name'].toLowerCase();
 
@@ -64,7 +66,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
       }
       return;
     }
-    joinParty(client, userstate, channel, command);
+    joinParty(client, userstate, channel, command, wsClients);
   }
   if (command[0] === '!dropme') {
     var i = queue.findIndex(function (player) {
@@ -307,7 +309,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
           client.say(channel, 'Skipped ' + succ.join(', '));
         }
         if (fail.length) {
-          client.whisper(channel, 'No such users in the queue: ' + failed.join(', '));
+          client.whisper(channel, 'No such users in the queue to skip: ' + failed.join(', '));
         }
       } else {
         if (verbose) {
@@ -375,7 +377,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
     // !move <user> <location>
     if (command[0] === '!move' && command.length > 2) {
       if (!/^\d+$/.test(command[2])) {
-        client.whisper(userstate['display-name'], command[2] + ' is not a valid place in line. Line size is currently ' + queue.length + '.');
+        client.whisper(userstate['display-name'], 'Move failed: ' + command[2] + ' is not a valid place in line. Line size is currently ' + queue.length + '.');
         return;
       }
       var _i2 = queue.findIndex(function (player) {
@@ -415,7 +417,7 @@ var handleCommand = exports.handleCommand = async function handleCommand(client,
           client.say(channel, 'Dropped ' + _succ2.join(', '));
         }
         if (_fail2.length) {
-          client.whisper(userstate['display-name'], 'No such users in queue: ' + _fail2.join(', '));
+          client.whisper(userstate['display-name'], 'No such users in queue to drop: ' + _fail2.join(', '));
         }
       } else {
         if (!queue.length) {
@@ -497,7 +499,7 @@ var getList = function getList(showAll) {
   return msg;
 };
 
-var joinParty = async function joinParty(client, userstate, channel, command) {
+var joinParty = async function joinParty(client, userstate, channel, command, wsClients) {
   if (followLock) {
     console.log("waiting");
     setTimeout(function () {
@@ -539,13 +541,20 @@ var joinParty = async function joinParty(client, userstate, channel, command) {
     return;
   }
   if (command[1]) {
-    friends[joiner] = command.slice(1).join(' ');;
+    friends[joiner] = command.slice(1).join(' ');
     updateData();
-    queue.push({ twitch: joiner, ign: command[1] });
-  } else {
-    queue.push({ twitch: joiner, ign: friends[joiner] });
   }
+  var json = { twitch: joiner, ign: friends[joiner] };
+  queue.push(json);
   if (verbose) {
     client.say(channel, userstate['display-name'] + ' joined the party! You are number ' + queue.length + ' in line.');
   }
+  sendMessage(JSON.stringify(json), wsClients);
+};
+
+var sendMessage = function sendMessage(json, wsClients) {
+  // We are sending the current data to all connected clients
+  Object.keys(wsClients).map(function (client) {
+    wsClients[client].sendUTF(json);
+  });
 };

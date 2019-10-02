@@ -20,7 +20,9 @@ let listCooldown = 20000; // default 20 seconds
 let counter = 0;
 let followLock = false;
 
-export const handleCommand = async (client, channel, userstate, msg, whisperTo) => {
+export const handleCommand = async (client, channel, userstate, msg, wsClients, whisperTo) => {
+  console.log("WSCLIENTS")
+  console.log(wsClients);
   let command = msg.toLowerCase().split(' ');
   const joiner = userstate['display-name'].toLowerCase();
 
@@ -47,7 +49,7 @@ export const handleCommand = async (client, channel, userstate, msg, whisperTo) 
       }
       return;
     }
-    joinParty(client, userstate, channel, command);
+    joinParty(client, userstate, channel, command, wsClients);
   }
   if (command[0] === '!dropme') {
     const i = queue.findIndex(player => player.twitch === joiner);
@@ -452,7 +454,7 @@ const getList = showAll => {
   return msg;
 }
 
-const joinParty = async (client, userstate, channel, command) => {
+const joinParty = async (client, userstate, channel, command, wsClients) => {
   if (followLock) {
     console.log("waiting");
     setTimeout(() => {
@@ -492,13 +494,20 @@ const joinParty = async (client, userstate, channel, command) => {
     return;
   }
   if (command[1]) {
-    friends[joiner] = command.slice(1).join(' ');;
+    friends[joiner] = command.slice(1).join(' ');
     updateData();
-    queue.push({ twitch: joiner, ign: command[1] });
-  } else {
-    queue.push({ twitch: joiner, ign: friends[joiner] });
   }
+  const json = { twitch: joiner, ign: friends[joiner] };
+  queue.push(json);
   if (verbose) {
     client.say(channel, `${userstate['display-name']} joined the party! You are number ${queue.length} in line.`);
   }
+  sendMessage(JSON.stringify(json), wsClients);
+}
+
+const sendMessage = (json, wsClients) => {
+  // We are sending the current data to all connected clients
+  Object.keys(wsClients).map(client => {
+    wsClients[client].sendUTF(json);
+  });
 }
