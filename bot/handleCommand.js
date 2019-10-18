@@ -502,10 +502,10 @@ const joinParty = async (client, userstate, channel, command, wsClients) => {
   if (verbose) {
     client.say(channel, `${userstate['display-name']} joined the party! You are number ${queue.length} in line.`);
   }
-  sendMessage(JSON.stringify(json), wsClients);
+  sendMessageToWidget(JSON.stringify(json), wsClients);
 }
 
-const sendMessage = (json, wsClients) => {
+const sendMessageToWidget = (json, wsClients) => {
   // We are sending the current data to all connected clients
   Object.keys(wsClients).map(client => {
     wsClients[client].sendUTF(json);

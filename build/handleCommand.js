@@ -549,10 +549,10 @@ var joinParty = async function joinParty(client, userstate, channel, command, ws
   if (verbose) {
     client.say(channel, userstate['display-name'] + ' joined the party! You are number ' + queue.length + ' in line.');
   }
-  sendMessage(JSON.stringify(json), wsClients);
+  sendMessageToWidget(JSON.stringify(json), wsClients);
 };
 
-var sendMessage = function sendMessage(json, wsClients) {
+var sendMessageToWidget = function sendMessageToWidget(json, wsClients) {
   // We are sending the current data to all connected clients
   Object.keys(wsClients).map(function (client) {
     wsClients[client].sendUTF(json);
