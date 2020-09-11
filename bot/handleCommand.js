@@ -78,7 +78,7 @@ export const handleCommand = async (client, channel, userstate, msg, wsClients, 
 
   // print the list
   if (command[0] === '!list') {
-    if (userstate.mod || isBc(userstate)) {
+    if (userstate.mod || isBc(userstate) || userstate['username'] === 'gimmedafruitsnacks') {
       client.whisper(options.channels[0], getList(true));
     } else {
       if (listIsMod) { // mod-only
@@ -95,7 +95,7 @@ export const handleCommand = async (client, channel, userstate, msg, wsClients, 
   }
 
   // MOD-ONLY COMMANDS
-  if (userstate.mod || isBc(userstate)) {
+  if (userstate.mod || isBc(userstate) || userstate['username'] === 'gimmedafruitsnacks') {
     // set/display list mode
     if (command[0] === '!listmode') {
       if (command[1]) {
@@ -411,7 +411,6 @@ const reminders = async (channel, client, first) => {
     reminders(channel, client);
   }, reminderInterval);
 }
-
 const fetchTwitch = async (url) => {
   const response = await fetch(`https://api.twitch.tv/helix/${url}`, {
     method: "GET",
@@ -462,24 +461,25 @@ const joinParty = async (client, userstate, channel, command, wsClients) => {
     }, 100);
     return;
   }
-  if (mode === 'follower') {
-    followLock = true;
-    let followed = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=${userstate['user-id']}`);
-    setTimeout(() => { followLock = false; }, 1000);
-    if (!followed.total) {
-      if (verbose) {
-        client.say(channel, `Sorry ${userstate['display-name']}, you must be a follower to join the queue!`);
-      }
-      return;
-    }
-  } else if (mode === 'sub') {
-    if (!userstate.subscriber) {
-      if (verbose) {
-        client.say(channel, `Sorry ${userstate['display-name']}, you must be a subscriber to join the queue!`);
-      }
-      return;
-    }
-  }
+  console.log(`\n\n${options.channelInfo[0].user_id}\n\n`);
+  // if (mode === 'follower') {
+  //   followLock = true;
+  //   let followed = await fetchTwitch(`users/follows?to_id=${options.channelInfo[0].user_id}&from_id=${userstate['user-id']}`);
+  //   setTimeout(() => { followLock = false; }, 1000);
+  //   if (!followed.total) {
+  //     if (verbose) {
+  //       client.say(channel, `Sorry ${userstate['display-name']}, you must be a follower to join the queue!`);
+  //     }
+  //     return;
+  //   }
+  // } else if (mode === 'sub') {
+  //   if (!userstate.subscriber) {
+  //     if (verbose) {
+  //       client.say(channel, `Sorry ${userstate['display-name']}, you must be a subscriber to join the queue!`);
+  //     }
+  //     return;
+  //   }
+  // }
   const joiner = userstate['display-name'].toLowerCase();
   if (queue.length === limit) {
     if (verbose) {
